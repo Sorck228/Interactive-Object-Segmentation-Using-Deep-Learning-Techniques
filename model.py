@@ -6,7 +6,7 @@ import torchvision.transforms as T
 import numpy as np
 
 
-fcn = models.resnet34(pretrained=True).eval()
+fcn = models.resnet18(pretrained=True).eval()
 img = Image.open("dog.jpeg")
 
 plt.imshow(img); plt.show()
@@ -21,8 +21,12 @@ print(img.size)
 inp = trf(img).unsqueeze(0)
 print(inp.shape)
 
+print(fcn)
 
+print(fcn.fc)
 
+fcn.fc = torch.nn.Identity()
+print("Updated ", fcn.fc)
 # out = fcn(inp)['out']
 # print(out.shape)
 #
