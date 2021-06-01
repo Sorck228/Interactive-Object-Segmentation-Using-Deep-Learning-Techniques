@@ -7,7 +7,7 @@ import numpy as np
 
 
 fcn = models.resnet34(pretrained=True).eval()
-img = Image.open("bird.png")
+img = Image.open("dog.jpeg")
 
 plt.imshow(img); plt.show()
 
@@ -20,9 +20,12 @@ trf = T.Compose([T.Resize(256),
 print(img.size)
 inp = trf(img).unsqueeze(0)
 print(inp.shape)
-out = fcn(inp)['out']
-print(out.shape)
 
-om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
-print(om.shape)
-print(np.unique(om))
+
+
+# out = fcn(inp)['out']
+# print(out.shape)
+#
+# om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
+# print(om.shape)
+# print(np.unique(om))
