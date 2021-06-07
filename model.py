@@ -2,10 +2,13 @@ from torchvision import models
 from PIL import Image
 import torch
 import torch.nn as nn
+import torch.optim as optim
 import matplotlib.pyplot as plt
 import torchvision.transforms as T
 import numpy as np
 from albumentations.pytorch import ToTensorV2
+import model_utils
+
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-5
@@ -68,8 +71,14 @@ class firstModel(nn.Module):
         concat_features = torch.cat([out1, out2, out3], 1)
         return out1, concat_features
 
+
 resnet50 = models.resnet50(pretrained=True).eval()
 img = Image.open("dog.jpeg")
+
+
+def accuracy(out, labels):
+    _, pred = torch.max(out, dim=1)
+    return torch.sum(pred == labels).item()
 
 
 child_counter = 0
@@ -90,15 +99,85 @@ image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 use_gpu = torch.cuda.is_available()
 if use_gpu:
+    device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
     print("Using CUDA")
 image_block = image_block.cuda() if use_gpu else image_block
 click_block = click_block.cuda() if use_gpu else click_block
+
+criterion = nn.CrossEntropyLoss()
+optimizer = optim.SGD(image_block.parameters(), lr=0.0001, momentum=0.9)
+
+
+# num_ftrs = image_block.fc.in_features
+# image_block.fc = nn.Linear(num_ftrs, 128)
+# image_block.fc = image_block.fc.cuda() if use_gpu else image_block.fc
 
 for param in image_block.parameters():
     param.requires_grad = False
 
 for param in click_block.parameters():
     param.requires_grad = False
+
+
+NUM_EPOCHS = 5
+print_every = 10
+valid_loss_min = np.Inf
+val_loss = []
+val_acc = []
+train_loss = []
+train_acc = []
+total_step = len(train_dataloader)
+for epoch in range(1, NUM_EPOCHS + 1):
+    running_loss = 0.0
+    correct = 0
+    total=0
+    print(f'Epoch {epoch}\n')
+    for batch_idx, (data_, target_) in enumerate(train_dataloader):
+        data_, target_ = data_.to(device), target_.to(device)
+        optimizer.zero_grad()
+
+        outputs = net(data_)
+        loss = criterion(outputs, target_)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        _,pred = torch.max(outputs, dim=1)
+        correct += torch.sum(pred==target_).item()
+        total += target_.size(0)
+        if (batch_idx) % 20 == 0:
+            print ('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'
+                   .format(epoch, NUM_EPOCHS, batch_idx, total_step, loss.item()))
+    train_acc.append(100 * correct / total)
+    train_loss.append(running_loss/total_step)
+    print(f'\ntrain-loss: {np.mean(train_loss):.4f}, train-acc: {(100 * correct/total):.4f}')
+    batch_loss = 0
+    total_t=0
+    correct_t=0
+    with torch.no_grad():
+        net.eval()
+        for data_t, target_t in (test_dataloader):
+            data_t, target_t = data_t.to(device), target_t.to(device)
+            outputs_t = net(data_t)
+            loss_t = criterion(outputs_t, target_t)
+            batch_loss += loss_t.item()
+            _,pred_t = torch.max(outputs_t, dim=1)
+            correct_t += torch.sum(pred_t==target_t).item()
+            total_t += target_t.size(0)
+        val_acc.append(100 * correct_t/total_t)
+        val_loss.append(batch_loss/len(test_dataloader))
+        network_learned = batch_loss < valid_loss_min
+        print(f'validation loss: {np.mean(val_loss):.4f}, validation acc: {(100 * correct_t/total_t):.4f}\n')
+
+
+        if network_learned:
+            valid_loss_min = batch_loss
+            torch.save(net.state_dict(), 'resnet.pt')
+            print('Improvement-Detected, save-model')
+    net.train()
+
+
+
 
 
 
