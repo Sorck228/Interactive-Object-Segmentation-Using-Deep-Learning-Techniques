@@ -7,39 +7,100 @@ import torchvision.transforms as T
 import numpy as np
 from albumentations.pytorch import ToTensorV2
 
-class Identity(nn.Module):
+# Hyperparameters etc.
+LEARNING_RATE = 1e-5
+DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
+BATCH_SIZE = 16
+NUM_EPOCHS = 1
+NUM_WORKERS = 2
+IMAGE_HEIGHT = 160  # 1280 originally
+IMAGE_WIDTH = 240  # 1918 originally
+PIN_MEMORY = True
+LOAD_MODEL = False
+
+# Working but not useful for this application
+# class Identity(nn.Module):
+#     def __init__(self):
+#         super(Identity, self).__init__()
+#
+#     def forward(self, x):
+#         return x
+
+class firstModel(nn.Module):
     def __init__(self):
-        super(Identity, self).__init__()
+        super(firstModel, self).__init__()
+        model = models.resnet50(pretrained=True)
+        for child in model.children():
+            self.tester = child[4]
+            print(self.tester)
+            self.Conv1 = child[0]   #
+            self.BN1 = child[1]     #
+            # child[2] = ReLU   #
+            self.Conv4 = child[7]   #
+            self.Conv5 = child[10]  #
+            self.Conv6 = child[12]  #
+            self.Conv7 = child[14]  #
+            self.upSample1 = nn.Upsample(scale_factor=2)
+            self.upSample2 = nn.Upsample(scale_factor=4)
+            break
 
     def forward(self, x):
-        return x
+        out1 = self.Conv1(x)
+        out1 = nn.ReLU(out1)
+        out1 = self.Conv2(out1)
+        out1 = nn.ReLU(out1)
+        out1_mp = nn.MaxPool2d(out1, 2, 2)
+        out2 = self.Conv3(out1_mp)
+        out2 = nn.ReLU(out2)
+        out2 = self.Conv4(out2)
+        out2 = nn.ReLU(out2)
+        out2_mp = nn.MaxPool2d(out2, 2, 2)
+        out3 = self.Conv5(out2_mp)
+        out3 = nn.ReLU(out3)
+        out3 = self.Conv6(out3)
+        out3 = nn.ReLU(out3)
+        out3 = self.Conv7(out3)
+        out3 = nn.ReLU(out3)
+        ###### up sampling to create output with the same size
+        out2 = self.upSample1(out2)
+        out3 = self.upSample2(out3)
+        #out7_mp = F.max_pool2d(out7, 2, 2)
+        concat_features = torch.cat([out1, out2, out3], 1)
+        return out1, concat_features
 
-
-
-fcn2 = models.resnet50(pretrained=True).eval()
-#fcn = models.segmentation.fcn_resnet50(pretrained=True).eval()
+resnet50 = models.resnet50(pretrained=True).eval()
 img = Image.open("dog.jpeg")
-#print(fcn)
 
-#plt.imshow(img); plt.show()
 
+child_counter = 0
+for child in resnet50.children():
+   print(" child", child_counter, "is:")
+   print(child)
+   child_counter += 1
+
+# plt.imshow(img); plt.show()
+# to be changed to albumentations
 trf = T.Compose([T.Resize(256),
                  T.CenterCrop(224),
                  T.ToTensor(),
                  T.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
-print(img.size)
-inp = trf(img).unsqueeze(0)
-print(inp.shape)
+# removing avg. pool & FCN layers for both streams
+image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
+click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
+use_gpu = torch.cuda.is_available()
+if use_gpu:
+    print("Using CUDA")
+image_block = image_block.cuda() if use_gpu else image_block
+click_block = click_block.cuda() if use_gpu else click_block
 
-# removing avgpool and fc layers from model
-# Expecting output of shape [7, 7] but get [1, 100352]
-fcn2.avgpool = nn.Identity()
-fcn2.fc = nn.Identity()
-print(fcn2)
+for param in image_block.parameters():
+    param.requires_grad = False
 
-out2 = fcn2(inp)
-print(out2.shape)
+for param in click_block.parameters():
+    param.requires_grad = False
+
+
 
 
 #fcn.fc = nn.Identity()
@@ -47,8 +108,6 @@ print(out2.shape)
 
 #out = fcn(inp)['out']
 #print(out.shape)
-
-
 
 #om = torch.argmax(out.squeeze(), dim=0).detach().cpu().numpy()
 #print(om.shape)
@@ -101,3 +160,14 @@ print(out2.shape)
 #     nn.ReLU(),
 #     nn.Sigmoid()
 # )
+
+# # needs to be tested inside a module def:
+# for child in image_block.children():
+#     c0 = child[0]
+#     c1 = child[1]
+#     c2 = child[2]
+#     c3 = child[3]
+#     print(child)
+#     break
+# tester = nn.Sequential(c0, c1, c2, c3)
+# print(tester)
