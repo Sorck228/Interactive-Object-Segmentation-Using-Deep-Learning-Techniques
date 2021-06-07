@@ -16,8 +16,8 @@ DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 1
 NUM_WORKERS = 0
-IMAGE_HEIGHT = 160  # 1280 originally
-IMAGE_WIDTH = 240  # 1918 originally
+IMAGE_HEIGHT = 224
+IMAGE_WIDTH = 224
 PIN_MEMORY = True
 LOAD_MODEL = False
 TRAIN_IMG_DIR = "../../Github_data/data/train_images/"
@@ -25,13 +25,8 @@ TRAIN_MASK_DIR = "../../Github_data/data/train_masks/"
 VAL_IMG_DIR = "../../Github_data/data/test_images/"
 VAL_MASK_DIR = "../../Github_data/data/test_masks/"
 
-# Working but not useful for this application
-# class Identity(nn.Module):
-#     def __init__(self):
-#         super(Identity, self).__init__()
-#
-#     def forward(self, x):
-#         return x
+
+
 
 class firstModel(nn.Module):  #  Work in progress
     def __init__(self):
@@ -78,18 +73,18 @@ class firstModel(nn.Module):  #  Work in progress
 
 resnet50 = models.resnet50(pretrained=True).eval()
 img = Image.open("dog.jpeg")
-
+img = np.array(img)
 
 def accuracy(out, labels):
     _, pred = torch.max(out, dim=1)
     return torch.sum(pred == labels).item()
 
 
-child_counter = 0
-for child in resnet50.children():
-   print(" child", child_counter, "is:")
-   print(child)
-   child_counter += 1
+# child_counter = 0
+# for child in resnet50.children():
+#    print(" child", child_counter, "is:")
+#    print(child)
+#    child_counter += 1
 
 # plt.imshow(img); plt.show()
 
@@ -102,6 +97,12 @@ trf = A.Compose([A.Resize(height=256, width=256),
 # removing avg. pool & FCN layers for both streams
 image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
+use_gpu = torch.cuda.is_available()
+device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
+if use_gpu:
+    print("Using CUDA")
+image_block = image_block.cuda() if use_gpu else image_block
+click_block = click_block.cuda() if use_gpu else click_block
 
 # freeze resnet layer weights
 for param in image_block.parameters():
@@ -110,22 +111,27 @@ for param in image_block.parameters():
 for param in click_block.parameters():
     param.requires_grad = False
 
+train_transforms = A.Compose(
+        [
+            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.Rotate(limit=35, p=1.0),
+            A.HorizontalFlip(p=0.5),
+            A.VerticalFlip(p=0.1),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0),
+            ToTensorV2(),
+        ],
+    )
+test_transforms = A.Compose(
+        [
+            A.Resize(height=IMAGE_HEIGHT, width=IMAGE_WIDTH),
+            A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225], max_pixel_value=255.0),
+            ToTensorV2(),
+        ],
+    )
 
-use_gpu = torch.cuda.is_available()
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if use_gpu:
-    print("Using CUDA")
-image_block = image_block.cuda() if use_gpu else image_block
-click_block = click_block.cuda() if use_gpu else click_block
 
 criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(image_block.parameters(), lr=0.0001, momentum=0.9)
-
-
-# num_ftrs = image_block.fc.in_features
-# image_block.fc = nn.Linear(num_ftrs, 128)
-# image_block.fc = image_block.fc.cuda() if use_gpu else image_block.fc
-
 
 
 train_dataloader, test_dataloader = get_loaders(
@@ -134,8 +140,8 @@ train_dataloader, test_dataloader = get_loaders(
         VAL_IMG_DIR,
         VAL_MASK_DIR,
         BATCH_SIZE,
-        trf,
-        trf,
+        train_transforms,
+        test_transforms,
         NUM_WORKERS,
         PIN_MEMORY,
     )
@@ -147,7 +153,21 @@ val_loss = []
 val_acc = []
 train_loss = []
 train_acc = []
-total_step = len(train_dataloader)
+total_step = len(train_dataloader.dataset.images)
 print(total_step)
 
 
+######################################
+# print image_block model layers and test output shape from model, should be 7x7
+#child_counter = 0
+#for child in image_block.children():
+   #print(" child", child_counter, "is:")
+   #print(child)
+#   child_counter += 1
+
+# transform image and add batch dimension
+# transformed_img = test_transforms(image=img)["image"].unsqueeze(0)
+#
+# print(transformed_img.shape)
+# out2 = image_block(transformed_img)
+# print(out2.shape)
