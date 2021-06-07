@@ -15,7 +15,7 @@ LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 16
 NUM_EPOCHS = 1
-NUM_WORKERS = 0
+NUM_WORKERS = 4
 IMAGE_HEIGHT = 224
 IMAGE_WIDTH = 224
 PIN_MEMORY = True
@@ -97,12 +97,11 @@ trf = A.Compose([A.Resize(height=256, width=256),
 # removing avg. pool & FCN layers for both streams
 image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
-use_gpu = torch.cuda.is_available()
-device = torch.device('cuda:0' if torch.cuda.is_available() else 'cpu')
-if use_gpu:
+
+if DEVICE:
     print("Using CUDA")
-image_block = image_block.cuda() if use_gpu else image_block
-click_block = click_block.cuda() if use_gpu else click_block
+image_block = image_block.cuda() if DEVICE=="cuda" else image_block
+click_block = click_block.cuda() if DEVICE=="cuda" else click_block
 
 # freeze resnet layer weights
 for param in image_block.parameters():
@@ -155,6 +154,43 @@ train_loss = []
 train_acc = []
 total_step = len(train_dataloader.dataset.images)
 print(total_step)
+
+
+for epoch in range(1, NUM_EPOCHS+1):
+    running_loss = 0.0
+    correct = 0
+    total=0
+    print(f'Epoch {epoch}\n')
+
+    for batch_idx, (data, targets) in enumerate(train_dataloader):
+        data_, target_ = data_.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
+        optimizer.zero_grad()
+
+        outputs = image_block(data_)
+        loss = criterion(outputs, target_)
+        loss.backward()
+        optimizer.step()
+
+        running_loss += loss.item()
+        _ ,pred = torch.max(outputs, dim=1)
+        correct += torch.sum(pred == target_).item()
+        total += target_.size(0)
+        if (batch_idx) % 20 == 0:
+            print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch, NUM_EPOCHS, batch_idx, total_step, loss.item()))
+
+        # forward
+
+
+        # backward
+
+
+
+
+
+
+    if epoch == NUM_EPOCHS:
+        print("Done")
+
 
 
 ######################################

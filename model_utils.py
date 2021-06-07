@@ -15,7 +15,6 @@ def get_loaders(
     val_transform,
     num_workers=4,
     pin_memory=True,
-
 ):
     train_ds = CarvanaDataset(
         image_dir=train_dir,
