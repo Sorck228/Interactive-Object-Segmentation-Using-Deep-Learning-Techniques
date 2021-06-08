@@ -4,16 +4,16 @@ import torch
 import torch.nn as nn
 import torch.optim as optim
 import matplotlib.pyplot as plt
-import torchvision.transforms as T
 import albumentations as A
 import numpy as np
 from albumentations.pytorch import ToTensorV2
 from model_utils import get_loaders
+import sys
 
 # Hyperparameters etc.
 LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 16
+BATCH_SIZE = 1
 NUM_EPOCHS = 1
 NUM_WORKERS = 4
 IMAGE_HEIGHT = 224
@@ -89,10 +89,10 @@ def accuracy(out, labels):
 # plt.imshow(img); plt.show()
 
 # define transformations
-trf = A.Compose([A.Resize(height=256, width=256),
-                 A.CenterCrop(height=224, width=224),
-                 A.pytorch.ToTensorV2(),
-                 A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
+# trf = A.Compose([A.Resize(height=224, width=224),
+#                  A.CenterCrop(height=224, width=224),
+#                  A.pytorch.ToTensorV2(),
+#                  A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
 # removing avg. pool & FCN layers for both streams
 image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
@@ -153,17 +153,17 @@ val_acc = []
 train_loss = []
 train_acc = []
 total_step = len(train_dataloader.dataset.images)
-print(total_step)
+print(f"total step: {total_step}")
 
 
 for epoch in range(1, NUM_EPOCHS+1):
     running_loss = 0.0
     correct = 0
-    total=0
+    total = 0
     print(f'Epoch {epoch}\n')
 
     for batch_idx, (data, targets) in enumerate(train_dataloader):
-        data_, target_ = data_.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
+        data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
         optimizer.zero_grad()
 
         outputs = image_block(data_)
@@ -172,21 +172,16 @@ for epoch in range(1, NUM_EPOCHS+1):
         optimizer.step()
 
         running_loss += loss.item()
-        _ ,pred = torch.max(outputs, dim=1)
+        _, pred = torch.max(outputs, dim=1)
         correct += torch.sum(pred == target_).item()
         total += target_.size(0)
         if (batch_idx) % 20 == 0:
             print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch, NUM_EPOCHS, batch_idx, total_step, loss.item()))
-
-        # forward
-
-
-        # backward
-
-
-
-
-
+#
+#         # forward
+#
+#
+#         # backward
 
     if epoch == NUM_EPOCHS:
         print("Done")
