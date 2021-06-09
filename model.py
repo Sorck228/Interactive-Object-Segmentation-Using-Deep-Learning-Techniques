@@ -112,7 +112,7 @@ decoder_block = torch.nn.Sequential(decoder_block_,
                                     nn.UpsamplingBilinear2d(scale_factor=2),
                                     nn.UpsamplingBilinear2d(scale_factor=2)
                                     )
-print(decoder_block)
+
 
 
 if DEVICE:
@@ -182,16 +182,21 @@ for epoch in range(1, NUM_EPOCHS+1):
 
     for batch_idx, (data, targets) in enumerate(train_dataloader):
         data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
+        #data_, target_ = data.to(DEVICE), targets.float().to(device=DEVICE)
         optimizer.zero_grad()
 
-        outputs_pre = image_block(data_)
-        outputs = decoder_block(outputs_pre)
-        loss = criterion(outputs, target_)
+        out_image_block = image_block(data_)
+        out_decoder_block = decoder_block(out_image_block)
+
+        print("target shape {}".format(target_.shape))
+        print("output shape {}".format(out_decoder_block.shape))
+
+        loss = criterion(out_decoder_block, target_)
         loss.backward()
         optimizer.step()
 
         running_loss += loss.item()
-        _, pred = torch.max(outputs, dim=1)
+        _, pred = torch.max(out_decoder_block, dim=1)
         correct += torch.sum(pred == target_).item()
         total += target_.size(0)
         if (batch_idx) % 20 == 0:
