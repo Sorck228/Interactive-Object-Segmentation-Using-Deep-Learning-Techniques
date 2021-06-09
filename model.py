@@ -3,6 +3,7 @@ from PIL import Image
 import torch
 import torch.nn as nn
 import torch.optim as optim
+
 import matplotlib.pyplot as plt
 import albumentations as A
 import numpy as np
@@ -15,7 +16,7 @@ LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
 BATCH_SIZE = 1
 NUM_EPOCHS = 1
-NUM_WORKERS = 4
+NUM_WORKERS = 0
 IMAGE_HEIGHT = 224
 IMAGE_WIDTH = 224
 PIN_MEMORY = True
@@ -72,6 +73,10 @@ class firstModel(nn.Module):  #  Work in progress
 
 
 resnet50 = models.resnet50(pretrained=True).eval()
+resnet50_fcn = models.segmentation.fcn_resnet50(pretrained=True).eval()
+
+
+
 img = Image.open("dog.jpeg")
 img = np.array(img)
 
@@ -79,9 +84,9 @@ def accuracy(out, labels):
     _, pred = torch.max(out, dim=1)
     return torch.sum(pred == labels).item()
 
-
+#
 # child_counter = 0
-# for child in resnet50.children():
+# for child in resnet50_fcn.classifier.children():
 #    print(" child", child_counter, "is:")
 #    print(child)
 #    child_counter += 1
@@ -98,10 +103,23 @@ def accuracy(out, labels):
 image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 
+decoder_block_ = torch.nn.Sequential(*(list(resnet50_fcn.classifier.children())[:]))
+decoder_block = torch.nn.Sequential(decoder_block_,
+                                    nn.Conv2d(21, 1, kernel_size=(1, 1), stride=(1, 1)),
+                                    nn.UpsamplingBilinear2d(scale_factor=2),
+                                    nn.UpsamplingBilinear2d(scale_factor=2),
+                                    nn.UpsamplingBilinear2d(scale_factor=2),
+                                    nn.UpsamplingBilinear2d(scale_factor=2),
+                                    nn.UpsamplingBilinear2d(scale_factor=2)
+                                    )
+print(decoder_block)
+
+
 if DEVICE:
     print("Using CUDA")
 image_block = image_block.cuda() if DEVICE=="cuda" else image_block
 click_block = click_block.cuda() if DEVICE=="cuda" else click_block
+decoder_block = image_block.cuda() if DEVICE=="cuda" else decoder_block
 
 # freeze resnet layer weights
 for param in image_block.parameters():
@@ -166,7 +184,8 @@ for epoch in range(1, NUM_EPOCHS+1):
         data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
         optimizer.zero_grad()
 
-        outputs = image_block(data_)
+        outputs_pre = image_block(data_)
+        outputs = decoder_block(outputs_pre)
         loss = criterion(outputs, target_)
         loss.backward()
         optimizer.step()
