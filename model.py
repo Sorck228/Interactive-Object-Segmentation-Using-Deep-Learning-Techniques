@@ -26,7 +26,9 @@ TRAIN_MASK_DIR = "../../Github_data/data/train_masks/"
 VAL_IMG_DIR = "../../Github_data/data/test_images/"
 VAL_MASK_DIR = "../../Github_data/data/test_masks/"
 
-
+def accuracy(out, labels):
+    _, pred = torch.max(out, dim=1)
+    return torch.sum(pred == labels).item()
 
 
 class firstModel(nn.Module):  #  Work in progress
@@ -71,18 +73,11 @@ class firstModel(nn.Module):  #  Work in progress
         concat_features = torch.cat([out1, out2, out3], 1)
         return out1, concat_features
 
-
-resnet50 = models.resnet50(pretrained=True).eval()
-resnet50_fcn = models.segmentation.fcn_resnet50(pretrained=True).eval()
-
-
-
 img = Image.open("dog.jpeg")
 img = np.array(img)
 
-def accuracy(out, labels):
-    _, pred = torch.max(out, dim=1)
-    return torch.sum(pred == labels).item()
+resnet50 = models.resnet50(pretrained=True).eval()
+resnet50_fcn = models.segmentation.fcn_resnet50(pretrained=True).eval()
 
 #
 # child_counter = 0
@@ -93,11 +88,6 @@ def accuracy(out, labels):
 
 # plt.imshow(img); plt.show()
 
-# define transformations
-# trf = A.Compose([A.Resize(height=224, width=224),
-#                  A.CenterCrop(height=224, width=224),
-#                  A.pytorch.ToTensorV2(),
-#                  A.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])])
 
 # removing avg. pool & FCN layers for both streams
 image_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
@@ -190,6 +180,7 @@ for epoch in range(1, NUM_EPOCHS+1):
 
         print("target shape {}".format(target_.shape))
         print("output shape {}".format(out_decoder_block.shape))
+        print(out_decoder_block)
 
         loss = criterion(out_decoder_block, target_)
         loss.backward()

@@ -45,7 +45,7 @@ class_names = np.arange(10)
 #num_features = vgg16.classifier[6].in_features
 #features = list(vgg16.classifier.children())[:-1] # Remove last layer
 #features = list(vgg16.features)
-#features.extend([nn.Linear(num_features, len(class_names))]) # Add our layer with 4 outputs
+#features.extend([nn.Linear(num_features, len(class_names))]) # Add our layer with 4 out_decoder_block
 #vgg16.classifier = nn.Sequential(*features) # Replace the model classifier
 #print(features)
 
