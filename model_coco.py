@@ -21,17 +21,17 @@ def get_model_instance_segmentation(num_classes):
 device = torch.device('cuda') if torch.cuda.is_available() else torch.device('cpu')
 
 # path to your own data and coco file
-train_data_dir = '../../Github_data/coco/images/train2017'
-train_json_dir = '../../Github_data/coco/annotations/instances_train2017.json'
+train_data_dir = '../../Github_data/coco/img_reduced_sample/'
+train_mask_dir = '../../Github_data/coco/mask_reduced_sample/'
 
 #coco_train = dset.CocoDetection(root=train_data_dir, annFile=train_json_dir, transforms=get_transform())
 
 
 # create own Dataset
 my_dataset = myOwnDataset(root=train_data_dir,
-                         annotation=train_json_dir,
-                         transforms=get_transform()
-                         )
+                          annotation=train_mask_dir,
+                          transforms=get_transform()
+                          )
 
 # collate_fn needs for batch
 def collate_fn(batch):

@@ -76,6 +76,11 @@ class firstModel(nn.Module):  #  Work in progress
 img = Image.open("dog.jpeg")
 img = np.array(img)
 
+coco_mask = Image.open("../../Github_data/coco/mask_reduced_sample/000000022704.png")
+coco_mask = np.array(coco_mask)
+
+
+
 resnet50 = models.resnet50(pretrained=True).eval()
 resnet50_fcn = models.segmentation.fcn_resnet50(pretrained=True).eval()
 
@@ -171,28 +176,35 @@ for epoch in range(1, NUM_EPOCHS+1):
     print(f'Epoch {epoch}\n')
 
     for batch_idx, (data, targets) in enumerate(train_dataloader):
+        # add batch dimension to target and send to device
+        # format  [batch_size, channel, height, width]
         data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
         #data_, target_ = data.to(DEVICE), targets.float().to(device=DEVICE)
+
+        # reset optimazer gradients
         optimizer.zero_grad()
 
+        # run model
         out_image_block = image_block(data_)
         out_decoder_block = decoder_block(out_image_block)
 
+        # debugging step to see model output and target shapes
         print("target shape {}".format(target_.shape))
         print("output shape {}".format(out_decoder_block.shape))
-        print(out_decoder_block)
 
+        out_decoder_block = out_decoder_block.squeeze(0)
         loss = criterion(out_decoder_block, target_)
         loss.backward()
+
         optimizer.step()
 
-        running_loss += loss.item()
-        _, pred = torch.max(out_decoder_block, dim=1)
-        correct += torch.sum(pred == target_).item()
-        total += target_.size(0)
-        if (batch_idx) % 20 == 0:
-            print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch, NUM_EPOCHS, batch_idx, total_step, loss.item()))
-#
+#         running_loss += loss.item()
+#         _, pred = torch.max(out_decoder_block, dim=1)
+#         correct += torch.sum(pred == target_).item()
+#         total += target_.size(0)
+#         if (batch_idx) % 20 == 0:
+#             print('Epoch [{}/{}], Step [{}/{}], Loss: {:.4f}'.format(epoch, NUM_EPOCHS, batch_idx, total_step, loss.item()))
+# #
 #         # forward
 #
 #
