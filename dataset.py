@@ -34,10 +34,10 @@ class CarvanaDataset(Dataset):
 
 
 class COCO_Dataset(Dataset):
-    def __init__(self, image_dir, mask_dir, transforms=None):
+    def __init__(self, image_dir, mask_dir, transform=None):
         self.image_dir = image_dir
         self.mask_dir = mask_dir
-        self.transform = transforms
+        self.transform = transform
         self.images = os.listdir(image_dir)
 
     def __len__(self):
@@ -45,7 +45,9 @@ class COCO_Dataset(Dataset):
 
     def __getitem__(self, index):
         img_path = os.path.join(self.image_dir, self.images[index])
-        mask_path = os.path.join(self.mask_dir, self.images[index].replace(".jpg", "_mask.gif"))
+        mask_path = os.path.join(self.mask_dir, self.images[index].replace(".jpg", ".png"))
+        # print("tester img path: ", img_path)
+        # print("tester mask path: ", mask_path)
         image = np.array(Image.open(img_path).convert("RGB"))
         mask = np.array(Image.open(mask_path))
 

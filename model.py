@@ -8,7 +8,7 @@ import matplotlib.pyplot as plt
 import albumentations as A
 import numpy as np
 from albumentations.pytorch import ToTensorV2
-from model_utils import get_loaders
+from model_utils import get_loaders_COCO
 import sys
 
 # Hyperparameters etc.
@@ -21,8 +21,8 @@ IMAGE_HEIGHT = 224
 IMAGE_WIDTH = 224
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "../../Github_data/data/train_images/"
-TRAIN_MASK_DIR = "../../Github_data/data/train_masks/"
+TRAIN_IMG_DIR = "../../Github_data/coco/img_reduced_sample/"
+TRAIN_MASK_DIR = "../../Github_data/coco/mask_reduced_sample/"
 VAL_IMG_DIR = "../../Github_data/data/test_images/"
 VAL_MASK_DIR = "../../Github_data/data/test_masks/"
 
@@ -146,7 +146,7 @@ criterion = nn.CrossEntropyLoss()
 optimizer = optim.SGD(image_block.parameters(), lr=0.0001, momentum=0.9)
 
 
-train_dataloader, test_dataloader = get_loaders(
+train_dataloader, test_dataloader = get_loaders_COCO(
         TRAIN_IMG_DIR,
         TRAIN_MASK_DIR,
         VAL_IMG_DIR,
@@ -158,6 +158,20 @@ train_dataloader, test_dataloader = get_loaders(
         PIN_MEMORY,
     )
 
+
+# for i in range(len(train_dataloader.dataset['images'])):
+#     sample = train_dataloader[i]['images']
+#
+#     print(i, sample['images'].shape, sample['mask'].shape)
+#
+#     ax = plt.subplot(1, 4, i + 1)
+#     plt.tight_layout()
+#     ax.set_title('Sample #{}'.format(i))
+#     ax.axis('off')
+#     if i == 3:
+#         plt.show()
+#         break
+#
 
 print_every = 10
 valid_loss_min = np.Inf
@@ -192,7 +206,7 @@ for epoch in range(1, NUM_EPOCHS+1):
         print("target shape {}".format(target_.shape))
         print("output shape {}".format(out_decoder_block.shape))
 
-        out_decoder_block = out_decoder_block.squeeze(0)
+        out_decoder_block = out_decoder_block.squeeze(1)
         loss = criterion(out_decoder_block, target_)
         loss.backward()
 
