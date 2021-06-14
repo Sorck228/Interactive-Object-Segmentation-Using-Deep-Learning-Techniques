@@ -159,19 +159,18 @@ train_dataloader, test_dataloader = get_loaders_COCO(
     )
 
 
-# for i in range(len(train_dataloader.dataset['images'])):
-#     sample = train_dataloader[i]['images']
-#
-#     print(i, sample['images'].shape, sample['mask'].shape)
-#
-#     ax = plt.subplot(1, 4, i + 1)
-#     plt.tight_layout()
-#     ax.set_title('Sample #{}'.format(i))
-#     ax.axis('off')
-#     if i == 3:
-#         plt.show()
-#         break
-#
+sample_idx = torch.randint(len(train_dataloader.dataset), size=(1,)).item()
+img, label = train_dataloader.dataset[sample_idx]
+
+plt.figure("image")
+plt.axis("off")
+plt.imshow(img.T)
+plt.show()
+
+plt.figure("label")
+plt.axis("off")
+plt.imshow(label.T)
+plt.show()
 
 print_every = 10
 valid_loss_min = np.Inf
@@ -192,8 +191,8 @@ for epoch in range(1, NUM_EPOCHS+1):
     for batch_idx, (data, targets) in enumerate(train_dataloader):
         # add batch dimension to target and send to device
         # format  [batch_size, channel, height, width]
-        data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
-        #data_, target_ = data.to(DEVICE), targets.float().to(device=DEVICE)
+        #data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
+        data_, target_ = data.to(DEVICE), targets.float().to(device=DEVICE)
 
         # reset optimazer gradients
         optimizer.zero_grad()
@@ -202,11 +201,12 @@ for epoch in range(1, NUM_EPOCHS+1):
         out_image_block = image_block(data_)
         out_decoder_block = decoder_block(out_image_block)
 
+        out_decoder_block = out_decoder_block.squeeze(1)
+
         # debugging step to see model output and target shapes
         print("target shape {}".format(target_.shape))
         print("output shape {}".format(out_decoder_block.shape))
 
-        out_decoder_block = out_decoder_block.squeeze(1)
         loss = criterion(out_decoder_block, target_)
         loss.backward()
 
