@@ -22,10 +22,10 @@ IMAGE_HEIGHT = 224
 IMAGE_WIDTH = 224
 PIN_MEMORY = True
 LOAD_MODEL = False
-TRAIN_IMG_DIR = "../../Github_data/coco/img_reduced_sample/"
-TRAIN_MASK_DIR = "../../Github_data/coco/mask_reduced_sample/"
-VAL_IMG_DIR = "../../Github_data/data/test_images/"
-VAL_MASK_DIR = "../../Github_data/data/test_masks/"
+TRAIN_IMG_DIR = "../coco/img_reduced_sample/"
+TRAIN_MASK_DIR = "../coco/mask_reduced_sample/"
+VAL_IMG_DIR = "../coco/img_reduced_sample/"
+VAL_MASK_DIR = "../coco/mask_reduced_sample/"
 
 
 def accuracy(out, labels):
@@ -74,15 +74,12 @@ class firstModel(nn.Module):  #  Work in progress
         #out7_mp = F.max_pool2d(out7, 2, 2)
         concat_features = torch.cat([out1, out2, out3], 1)
         return out1, concat_features
-
-
 if __name__ == '__main__':
-
 
     img = Image.open("dog.jpeg")
     img = np.array(img)
 
-    coco_mask = Image.open("../../Github_data/coco/mask_reduced_sample/000000022704.png")
+    coco_mask = Image.open("../coco/mask_reduced_sample/000000022704.png")
     coco_mask = np.array(coco_mask)
 
 
@@ -106,7 +103,8 @@ if __name__ == '__main__':
 
     decoder_block_ = torch.nn.Sequential(*(list(resnet50_fcn.classifier.children())[:]))
     decoder_block = torch.nn.Sequential(decoder_block_,
-                                        nn.Conv2d(21, 2, kernel_size=(1, 1), stride=(1, 1)),
+                                        nn.Conv2d(21, 184, kernel_size=(1, 1), stride=(1, 1)),
+                                        nn.Softmax(),
                                         nn.UpsamplingBilinear2d(scale_factor=2),
                                         nn.UpsamplingBilinear2d(scale_factor=2),
                                         nn.UpsamplingBilinear2d(scale_factor=2),
@@ -164,19 +162,21 @@ if __name__ == '__main__':
             PIN_MEMORY,
         )
 
+    sample = False
+    if sample:
+        sample_idx = torch.randint(len(train_dataloader.dataset), size=(1,)).item()
+        img, label = train_dataloader.dataset[sample_idx]
 
-    sample_idx = torch.randint(len(train_dataloader.dataset), size=(1,)).item()
-    img, label = train_dataloader.dataset[sample_idx]
+        plt.figure("image")
+        plt.axis("off")
+        plt.imshow(img.T)
+        plt.show()
 
-    plt.figure("image")
-    plt.axis("off")
-    plt.imshow(img.T)
-    plt.show()
+        plt.figure("label")
+        plt.axis("off")
+        plt.imshow(label.T)
+        plt.show()
 
-    plt.figure("label")
-    plt.axis("off")
-    plt.imshow(label.T)
-    plt.show()
 
     print_every = 10
     valid_loss_min = np.Inf
@@ -197,8 +197,8 @@ if __name__ == '__main__':
         for batch_idx, (data, targets) in enumerate(train_dataloader):
             # add batch dimension to target and send to device
             # format  [batch_size, channel, height, width]
-            #data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
             data_, target_ = data.to(DEVICE), targets.long().to(device=DEVICE)
+            print(torch.max(target_))
 
             # reset optimazer gradients
             optimizer.zero_grad()
