@@ -100,7 +100,8 @@ click_block = torch.nn.Sequential(*(list(resnet50.children())[:-2]))
 
 decoder_block_ = torch.nn.Sequential(*(list(resnet50_fcn.classifier.children())[:]))
 decoder_block = torch.nn.Sequential(decoder_block_,
-                                    nn.Conv2d(21, 1, kernel_size=(1, 1), stride=(1, 1)),
+                                    nn.Conv2d(21, 2, kernel_size=(1, 1), stride=(1, 1)),
+                                    nn.Softmax(),
                                     nn.UpsamplingBilinear2d(scale_factor=2),
                                     nn.UpsamplingBilinear2d(scale_factor=2),
                                     nn.UpsamplingBilinear2d(scale_factor=2),
