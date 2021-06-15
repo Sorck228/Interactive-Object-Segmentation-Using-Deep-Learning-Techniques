@@ -14,7 +14,7 @@ import sys
 # Hyperparameters etc.
 LEARNING_RATE = 1e-5
 DEVICE = "cuda" if torch.cuda.is_available() else "cpu"
-BATCH_SIZE = 1
+BATCH_SIZE = 2
 NUM_EPOCHS = 1
 NUM_WORKERS = 0
 IMAGE_HEIGHT = 224
@@ -158,19 +158,21 @@ train_dataloader, test_dataloader = get_loaders_COCO(
         PIN_MEMORY,
     )
 
+sample = False
+if sample:
+    sample_idx = torch.randint(len(train_dataloader.dataset), size=(1,)).item()
+    img, label = train_dataloader.dataset[sample_idx]
 
-sample_idx = torch.randint(len(train_dataloader.dataset), size=(1,)).item()
-img, label = train_dataloader.dataset[sample_idx]
+    plt.figure("image")
+    plt.axis("off")
+    plt.imshow(img.T)
+    plt.show()
 
-plt.figure("image")
-plt.axis("off")
-plt.imshow(img.T)
-plt.show()
+    plt.figure("label")
+    plt.axis("off")
+    plt.imshow(label.T)
+    plt.show()
 
-plt.figure("label")
-plt.axis("off")
-plt.imshow(label.T)
-plt.show()
 
 print_every = 10
 valid_loss_min = np.Inf
@@ -192,7 +194,7 @@ for epoch in range(1, NUM_EPOCHS+1):
         # add batch dimension to target and send to device
         # format  [batch_size, channel, height, width]
         #data_, target_ = data.to(DEVICE), targets.float().unsqueeze(1).to(device=DEVICE)
-        data_, target_ = data.to(DEVICE), targets.float().to(device=DEVICE)
+        data_, target_ = data.to(DEVICE), targets.long().to(device=DEVICE)
 
         # reset optimazer gradients
         optimizer.zero_grad()
@@ -200,8 +202,6 @@ for epoch in range(1, NUM_EPOCHS+1):
         # run model
         out_image_block = image_block(data_)
         out_decoder_block = decoder_block(out_image_block)
-
-        out_decoder_block = out_decoder_block.squeeze(1)
 
         # debugging step to see model output and target shapes
         print("target shape {}".format(target_.shape))
